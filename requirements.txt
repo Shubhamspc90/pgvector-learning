@@ -1,0 +1,3 @@
+psycopg[binary]
+sentence-transformers
+numpy
