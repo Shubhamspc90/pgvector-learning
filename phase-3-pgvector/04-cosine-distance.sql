@@ -1,0 +1,19 @@
+-- ==========================================
+-- Phase 3.4 — Cosine Distance
+-- Operator: <=>
+-- ==========================================
+
+-- Calculate cosine distance between two vectors.
+SELECT
+    '[0.1, 0.2, 0.3]'::vector
+    <=>
+    '[0.4, 0.5, 0.6]'::vector
+    AS cosine_distance;
+
+-- Calculate cosine distance against stored vectors.
+SELECT
+    name,
+    embedding,
+    embedding <=> '[0.1, 0.2, 0.3]'::vector AS cosine_distance
+FROM vector_examples
+ORDER BY cosine_distance;
