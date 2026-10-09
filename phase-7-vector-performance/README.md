@@ -1,25 +1,43 @@
 # Phase 7: Vector Search Performance
 
-## Objective
+## 1. Objective
 
-Understand vector-search performance in PostgreSQL with pgvector by measuring execution time, examining query plans, tuning index parameters, and evaluating the trade-off between speed and recall.
+Understand and evaluate vector-search performance in PostgreSQL using pgvector.
 
-## Dataset and Environment
+This phase focuses on:
 
-* Database: `pgvector_learning`
-* PostgreSQL port: `5433`
-* Benchmark table: `semantic_documents_benchmark`
-* Dataset size: 5,000 documents
-* Embedding model: `all-MiniLM-L6-v2`
-* Embedding dimensions: 384
-* Result limit: 5
-* Measured executions: 10
+* Measuring vector-search execution time.
+* Understanding query execution plans.
+* Comparing exact search, HNSW, and IVFFlat.
+* Tuning HNSW and IVFFlat search parameters.
+* Evaluating the trade-off between search speed and retrieval accuracy using Recall@5.
 
-## Milestone 1: Initial Benchmark
+## 2. Dataset and Environment
 
-The initial benchmark script, `benchmark_search.py`, warms up the query and collects PostgreSQL execution-time measurements using `EXPLAIN (ANALYZE, BUFFERS)`.
+| Property             | Configuration                  |
+| -------------------- | ------------------------------ |
+| Database             | `pgvector_learning`            |
+| PostgreSQL port      | `5433`                         |
+| Source table         | `semantic_documents_benchmark` |
+| Dataset size         | 5,000 documents                |
+| Embedding model      | `all-MiniLM-L6-v2`             |
+| Embedding dimensions | 384                            |
+| Result limit (K)     | 5                              |
+| Measured runs        | 10 per configuration           |
+| Distance metric      | Cosine distance                |
+| Vector extension     | pgvector                       |
 
-### Preliminary Results
+All experiments use the existing benchmark dataset. The comparison and tuning scripts create temporary tables and indexes, leaving the original benchmark table and its indexes unchanged.
+
+## 3. Milestone 1: Initial Benchmark
+
+**Script:** `benchmark_search.py`
+
+The initial benchmark establishes a baseline for vector-search execution time.
+
+The script uses `EXPLAIN (ANALYZE, BUFFERS)` to inspect the query execution plan and collect execution-time measurements across repeated runs.
+
+### Results
 
 | Metric                 |   Result |
 | ---------------------- | -------: |
@@ -29,83 +47,74 @@ The initial benchmark script, `benchmark_search.py`, warms up the query and coll
 | Measured runs          |       10 |
 | Observed index         |  IVFFlat |
 
-### Interpretation
+### Analysis
 
 PostgreSQL used `semantic_documents_benchmark_ivfflat_idx` for the observed query plan.
 
-These results are preliminary and reflect one query, the current database state, and the current search configuration. They are not a controlled comparison of HNSW and IVFFlat.
+These measurements establish a baseline for the existing database configuration. They do not provide a controlled comparison between exact search, HNSW, and IVFFlat.
 
-Database execution time excludes embedding generation and other application-level overhead. The initial benchmark also does not measure recall.
+The reported execution time measures database query execution, not the complete application response time. The initial benchmark also does not measure recall.
 
-## Planned Experiments
+## 4. Milestone 2: Exact Search vs. HNSW vs. IVFFlat
 
-1. Compare exact search with HNSW and IVFFlat.
-2. Investigate HNSW `ef_search` and IVFFlat `probes`.
-3. Measure recall against exact-search results.
-4. Analyze performance results and document limitations.
+**Script:** `compare_search_methods.py`
 
-## Reproducibility
+This experiment compares exact search with two approximate nearest-neighbor search methods.
 
-Activate the project's virtual environment, configure the PostgreSQL connection in `.env`, and run from the repository root:
-
-```powershell
-python .\phase-7-vector-performance\benchmark_search.py
-```
-
-The script reads the existing benchmark dataset and does not generate new documents.
-
-
-## Milestone 2: Exact Search vs. HNSW vs. IVFFlat
+Exact search provides the reference top-5 results. HNSW and IVFFlat results are compared against this reference to evaluate retrieval quality.
 
 ### Experimental Configuration
 
-* Dataset: 5,000 documents
-* Query: `artificial intelligence and information retrieval`
-* Result limit: 5
-* Measured runs per method: 10
-* HNSW `ef_search`: 40
-* IVFFlat `lists`: 50
-* IVFFlat `probes`: 10
-* Distance metric: cosine distance
+| Parameter                | Value                                               |
+| ------------------------ | --------------------------------------------------- |
+| Dataset size             | 5,000 documents                                     |
+| Query                    | `artificial intelligence and information retrieval` |
+| Result limit             | 5                                                   |
+| Measured runs per method | 10                                                  |
+| HNSW `ef_search`         | 40                                                  |
+| IVFFlat `lists`          | 50                                                  |
+| IVFFlat `probes`         | 10                                                  |
+| Distance metric          | Cosine distance                                     |
 
 ### Results
 
-| Method       | Average execution time |  Minimum |  Maximum | Recall@5 |
-| ------------ | ---------------------: | -------: | -------: | -------: |
-| Exact search |               6.610 ms | 5.515 ms | 9.385 ms |     100% |
-| HNSW         |               0.264 ms | 0.164 ms | 0.555 ms |     100% |
-| IVFFlat      |               0.401 ms | 0.300 ms | 0.591 ms |      80% |
+| Method       |  Average |  Minimum |  Maximum | Recall@5 |
+| ------------ | -------: | -------: | -------: | -------: |
+| Exact search | 6.610 ms | 5.515 ms | 9.385 ms |     100% |
+| HNSW         | 0.264 ms | 0.164 ms | 0.555 ms |     100% |
+| IVFFlat      | 0.401 ms | 0.300 ms | 0.591 ms |      80% |
 
 ### Analysis
 
-Exact search was the reference method for determining the nearest five documents.
+Exact search was used as the reference for determining the five nearest documents.
 
-In this experiment, HNSW was approximately 25 times faster than exact search and achieved 100% Recall@5. IVFFlat was approximately 16.5 times faster than exact search and achieved 80% Recall@5.
+In this experiment:
 
-HNSW performed better than IVFFlat for this particular query and configuration. These measurements are local experimental results, not a universal ranking of the algorithms.
+* HNSW was approximately 25 times faster than exact search and achieved 100% Recall@5.
+* IVFFlat was approximately 16.5 times faster than exact search and achieved 80% Recall@5.
+* HNSW performed better than IVFFlat for this particular query and configuration.
 
-Recall was evaluated for one query only. More queries are needed to draw conclusions about overall retrieval quality. Execution time also depends on the machine, cache state, dataset, and configuration.
+These results demonstrate that approximate search can substantially reduce query execution time while retaining most or all of the reference results.
+
+However, these measurements are specific to this experiment. They do not establish a universal ranking of the algorithms.
 
 ### Limitations
 
-* Only one query was used for the initial recall comparison.
-* The results reflect one set of index parameters.
-* The measurements represent PostgreSQL query execution, not end-to-end application latency.
-* Index creation and dataset-copying time are excluded from the reported query timings.
+* Only one query was used to evaluate recall.
+* Only one set of index parameters was tested for each method.
+* Results depend on hardware, cache state, dataset characteristics, and configuration.
+* Index construction and dataset preparation time are excluded from query execution measurements.
+* Database execution time does not include embedding generation or end-to-end application overhead.
 
+## 5. Milestone 3: HNSW and IVFFlat Parameter Tuning
 
-## Milestone 3: HNSW and IVFFlat Parameter Tuning
+**Script:** `tune_search_parameters.py`
 
-### Experimental Configuration
+This experiment investigates how HNSW `ef_search` and IVFFlat `probes` affect execution time and Recall@5.
 
-* Dataset: 5,000 documents
-* Query: `artificial intelligence and information retrieval`
-* Result limit: 5
-* Measured runs per configuration: 10
-* IVFFlat lists: 50
-* Distance metric: cosine distance
+The dataset size, query, result limit, and number of measured runs remain consistent across configurations.
 
-### HNSW Results
+### 5.1 HNSW Results
 
 | `ef_search` | Average execution time | Recall@5 |
 | ----------: | ---------------------: | -------: |
@@ -113,9 +122,17 @@ Recall was evaluated for one query only. More queries are needed to draw conclus
 |          40 |               0.320 ms |     100% |
 |         100 |               0.515 ms |     100% |
 
-Increasing `ef_search` improved recall from 20% to 100% between values 10 and 40. Increasing it further to 100 did not improve recall for this query and increased execution time.
+**Observations:**
 
-### IVFFlat Results
+* At `ef_search = 10`, search was fastest but retrieved only 20% of the exact top-5 results.
+* At `ef_search = 40`, Recall@5 reached 100%.
+* Increasing `ef_search` to 100 did not improve recall further for this query and increased execution time.
+
+The results illustrate how increasing the search effort can improve recall at the cost of additional execution time.
+
+### 5.2 IVFFlat Results
+
+The number of index lists was fixed at `lists = 50`.
 
 | `probes` | Average execution time | Recall@5 |
 | -------: | ---------------------: | -------: |
@@ -125,19 +142,126 @@ Increasing `ef_search` improved recall from 20% to 100% between values 10 and 40
 |       25 |               0.960 ms |     100% |
 |       50 |               4.290 ms |     100% |
 
-Increasing `probes` improved recall in this experiment. At 50 probes, all lists were examined and Recall@5 reached 100%, but execution time increased substantially.
+**Observations:**
 
-### Analysis
+* Low `probes` values provided faster searches but lower recall.
+* At `probes = 25`, Recall@5 reached 100%.
+* At `probes = 50`, all 50 lists were examined. Execution time increased substantially without improving recall for this query.
 
-For this query and dataset, HNSW with `ef_search = 40` achieved 100% Recall@5 at an average execution time of 0.320 ms. IVFFlat with `probes = 25` also achieved 100% Recall@5, with an average execution time of 0.960 ms.
+Searching all lists increases the amount of work performed and can remove the usual benefit of limiting the search to selected lists. The observed query plan and result quality should still be evaluated rather than assuming that an index scan is necessarily faster.
 
-These are preliminary local measurements, not universal performance guarantees. Only one query was evaluated, so further queries are needed to assess general retrieval quality.
+### 5.3 Comparing the Tuned Configurations
 
-The measurements represent PostgreSQL query execution time. They exclude model loading, embedding generation, temporary-table creation, and index construction.
+For this particular query:
 
-### Key Learning
+| Configuration          | Average execution time | Recall@5 |
+| ---------------------- | ---------------------: | -------: |
+| HNSW, `ef_search = 40` |               0.320 ms |     100% |
+| IVFFlat, `probes = 25` |               0.960 ms |     100% |
 
-* HNSW `ef_search` controls the search effort and can trade latency for recall.
-* IVFFlat `probes` controls how many index lists are examined.
+Both configurations achieved 100% Recall@5 in the experiment. HNSW was approximately three times faster than IVFFlat under these settings.
+
+This is a local experimental observation, not a guarantee that HNSW will outperform IVFFlat on every workload.
+
+## 6. Overall Findings
+
+The three milestones demonstrate the main performance considerations when using pgvector.
+
+### Exact Search
+
+* Provides the reference results for evaluating approximate search.
+* Can require more work as the dataset grows.
+* Is useful for establishing retrieval-quality baselines.
+
+### HNSW
+
+* Uses a graph-based index for approximate nearest-neighbor search.
+* The `ef_search` parameter controls the search effort at query time.
 * Higher settings can improve recall but may increase execution time.
-* Query plans should be checked to verify the intended index is being used.
+
+### IVFFlat
+
+* Organizes vectors into lists of clusters.
+* The `lists` parameter controls index construction, while `probes` controls how many lists are searched at query time.
+* Higher `probes` values can improve recall but may increase query execution time.
+
+### Practical Conclusion
+
+There is no single configuration that is best for every application.
+
+A suitable configuration depends on the required retrieval quality, acceptable latency, dataset size, hardware, and query workload.
+
+For the query tested in this phase, HNSW with `ef_search = 40` achieved 100% Recall@5 with lower average execution time than IVFFlat with `probes = 25`.
+
+These findings should be validated with additional queries and datasets before choosing production settings.
+
+## 7. Understanding Recall@5
+
+Recall@5 measures how many of the exact search's top-five results are also returned by the approximate search.
+
+The formula is:
+
+`Recall@5 = (Number of matching results / 5) × 100`
+
+For example, if an approximate method returns four of the five exact top results:
+
+`Recall@5 = (4 / 5) × 100 = 80%`
+
+A higher recall means the approximate search retrieved more of the reference results. Recall alone does not measure execution speed or every aspect of semantic relevance.
+
+## 8. Reproducibility
+
+Run these commands from the repository root after activating the virtual environment and configuring the PostgreSQL connection in `.env`.
+
+### Initial benchmark
+
+```powershell
+python .\phase-7-vector-performance\benchmark_search.py
+```
+
+### Compare search methods
+
+```powershell
+python .\phase-7-vector-performance\compare_search_methods.py
+```
+
+### Tune search parameters
+
+```powershell
+python .\phase-7-vector-performance\tune_search_parameters.py
+```
+
+The comparison and tuning scripts use temporary tables and indexes for their experiments. The temporary objects are removed when the database connection closes. The source benchmark table is not modified by these scripts.
+
+Execution times can vary between runs because of system load, caching, PostgreSQL configuration, and other environmental factors.
+
+## 9. Limitations and Future Work
+
+The current experiments are a learning benchmark, not a comprehensive production evaluation.
+
+Current limitations:
+
+* Recall was evaluated using only one query.
+* The dataset contains 5,000 documents.
+* Each configuration was measured over 10 runs.
+* The experiments use a single embedding model and distance metric.
+* Measurements focus on PostgreSQL query execution time rather than end-to-end latency.
+
+Potential future experiments:
+
+1. Evaluate recall across a larger collection of representative queries.
+2. Compare performance on larger datasets.
+3. Investigate the effects of index parameters on index size and memory usage.
+4. Measure end-to-end latency, including query embedding generation.
+5. Evaluate different workloads before selecting production configurations.
+
+## 10. Key Learning Outcomes
+
+After completing this phase, the main concepts learned are:
+
+* How to measure PostgreSQL query execution time using `EXPLAIN (ANALYZE, BUFFERS)`.
+* How to inspect query plans and verify index usage.
+* How exact search differs from approximate nearest-neighbor search.
+* How HNSW and IVFFlat index parameters influence latency and recall.
+* How to calculate and interpret Recall@5.
+* Why performance benchmarks must document their configuration, limitations, and experimental conditions.
