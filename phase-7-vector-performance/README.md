@@ -53,3 +53,42 @@ python .\phase-7-vector-performance\benchmark_search.py
 ```
 
 The script reads the existing benchmark dataset and does not generate new documents.
+
+
+## Milestone 2: Exact Search vs. HNSW vs. IVFFlat
+
+### Experimental Configuration
+
+* Dataset: 5,000 documents
+* Query: `artificial intelligence and information retrieval`
+* Result limit: 5
+* Measured runs per method: 10
+* HNSW `ef_search`: 40
+* IVFFlat `lists`: 50
+* IVFFlat `probes`: 10
+* Distance metric: cosine distance
+
+### Results
+
+| Method       | Average execution time |  Minimum |  Maximum | Recall@5 |
+| ------------ | ---------------------: | -------: | -------: | -------: |
+| Exact search |               6.610 ms | 5.515 ms | 9.385 ms |     100% |
+| HNSW         |               0.264 ms | 0.164 ms | 0.555 ms |     100% |
+| IVFFlat      |               0.401 ms | 0.300 ms | 0.591 ms |      80% |
+
+### Analysis
+
+Exact search was the reference method for determining the nearest five documents.
+
+In this experiment, HNSW was approximately 25 times faster than exact search and achieved 100% Recall@5. IVFFlat was approximately 16.5 times faster than exact search and achieved 80% Recall@5.
+
+HNSW performed better than IVFFlat for this particular query and configuration. These measurements are local experimental results, not a universal ranking of the algorithms.
+
+Recall was evaluated for one query only. More queries are needed to draw conclusions about overall retrieval quality. Execution time also depends on the machine, cache state, dataset, and configuration.
+
+### Limitations
+
+* Only one query was used for the initial recall comparison.
+* The results reflect one set of index parameters.
+* The measurements represent PostgreSQL query execution, not end-to-end application latency.
+* Index creation and dataset-copying time are excluded from the reported query timings.
