@@ -92,3 +92,52 @@ Recall was evaluated for one query only. More queries are needed to draw conclus
 * The results reflect one set of index parameters.
 * The measurements represent PostgreSQL query execution, not end-to-end application latency.
 * Index creation and dataset-copying time are excluded from the reported query timings.
+
+
+## Milestone 3: HNSW and IVFFlat Parameter Tuning
+
+### Experimental Configuration
+
+* Dataset: 5,000 documents
+* Query: `artificial intelligence and information retrieval`
+* Result limit: 5
+* Measured runs per configuration: 10
+* IVFFlat lists: 50
+* Distance metric: cosine distance
+
+### HNSW Results
+
+| `ef_search` | Average execution time | Recall@5 |
+| ----------: | ---------------------: | -------: |
+|          10 |               0.104 ms |      20% |
+|          40 |               0.320 ms |     100% |
+|         100 |               0.515 ms |     100% |
+
+Increasing `ef_search` improved recall from 20% to 100% between values 10 and 40. Increasing it further to 100 did not improve recall for this query and increased execution time.
+
+### IVFFlat Results
+
+| `probes` | Average execution time | Recall@5 |
+| -------: | ---------------------: | -------: |
+|        1 |               0.065 ms |       0% |
+|        5 |               0.152 ms |      60% |
+|       10 |               0.418 ms |      80% |
+|       25 |               0.960 ms |     100% |
+|       50 |               4.290 ms |     100% |
+
+Increasing `probes` improved recall in this experiment. At 50 probes, all lists were examined and Recall@5 reached 100%, but execution time increased substantially.
+
+### Analysis
+
+For this query and dataset, HNSW with `ef_search = 40` achieved 100% Recall@5 at an average execution time of 0.320 ms. IVFFlat with `probes = 25` also achieved 100% Recall@5, with an average execution time of 0.960 ms.
+
+These are preliminary local measurements, not universal performance guarantees. Only one query was evaluated, so further queries are needed to assess general retrieval quality.
+
+The measurements represent PostgreSQL query execution time. They exclude model loading, embedding generation, temporary-table creation, and index construction.
+
+### Key Learning
+
+* HNSW `ef_search` controls the search effort and can trade latency for recall.
+* IVFFlat `probes` controls how many index lists are examined.
+* Higher settings can improve recall but may increase execution time.
+* Query plans should be checked to verify the intended index is being used.
