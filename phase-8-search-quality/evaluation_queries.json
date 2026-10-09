@@ -1,0 +1,42 @@
+[
+{
+"id": "q1",
+"query": "artificial intelligence and information retrieval"
+},
+{
+"id": "q2",
+"query": "machine learning algorithms and model training"
+},
+{
+"id": "q3",
+"query": "database indexing and query performance"
+},
+{
+"id": "q4",
+"query": "natural language processing and text embeddings"
+},
+{
+"id": "q5",
+"query": "vector similarity search using PostgreSQL"
+},
+{
+"id": "q6",
+"query": "neural networks and deep learning"
+},
+{
+"id": "q7",
+"query": "semantic search over document collections"
+},
+{
+"id": "q8",
+"query": "approximate nearest neighbor indexing methods"
+},
+{
+"id": "q9",
+"query": "cosine distance between vector embeddings"
+},
+{
+"id": "q10",
+"query": "retrieval accuracy and search latency tradeoffs"
+}
+]
